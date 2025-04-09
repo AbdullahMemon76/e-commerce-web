@@ -1,58 +1,40 @@
-name: CI/CD Pipeline  Supabase
+name: CI/CD Pipeline for Supabase Backend with AWS and GitHub
 
-# Trigger the workflow on push to the main branch
 on:
   push:
     branches:
-      - main  # Ya tumhari branch jahan tum code push karte ho
+      - main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest  # Ubuntu environment for the build
+  deploy:
+    runs-on: ubuntu-latest
 
     steps:
       # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Step 2: Set up Node.js
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '16'  # Tumhare project ke liye jo Node.js version ho, wo set karo
-
-      # Step 3: Install dependencies (for Next.js, React, Tailwind CSS, and TypeScript)
-      - name: Install dependencies
+      # Step 2: Install AWS CLI
+      - name: Install AWS CLI
         run: |
-          npm install  # npm use kar rahe hain, agar yarn use karte ho toh yarn install karo
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
 
-      # Step 4: Build the project (Next.js build)
-      - name: Build Next.js project
-        run: npm run build  # Ye command Next.js app ko build karega
-
-  deploy:
-    runs-on: ubuntu-latest  # Ubuntu environment for deployment
-    needs: build  # Ensure build job runs before deploying
-    steps:
-      # Step 1: Checkout code again in the deploy job
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      # Step 2: Install Supabase CLI (if using Supabase CLI for deployment)
-      - name: Install Supabase CLI
+      # Step 3: Configure AWS CLI with AWS credentials
+      - name: Configure AWS CLI
         run: |
-          curl -sL https://github.com/supabase/cli/releases/download/v1.0.0/supabase_1.0.0_linux_amd64.tar.gz | tar xz
-          sudo mv supabase /usr/local/bin
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region us-east-1
 
-      # Step 3: Configure Supabase CLI with environment variables (add them in GitHub secrets)
-      - name: Configure Supabase Environment Variables
+      # Step 4: Set environment variables for Supabase
+      - name: Set Supabase environment variables
         run: |
-          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> $GITHUB_ENV
-          echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> $GITHUB_ENV
 
-      # Step 4: Deploy to Supabase (if using Supabase for deployment)
-      - name: Deploy to Supabase
+      # Step 5: Deploy to AWS (e.g., S3, Lambda, EC2)
+      - name: Deploy Backend to AWS
         run: |
-          # Example Supabase command for deploying your project
-          supabase db push  # Database changes ko push karne ke liye
-          supabase deploy  # Agar tum frontend deploy kar rahe ho
+          aws s3 sync ./build s3://your-bucket-name  # Example for S3 deploy
